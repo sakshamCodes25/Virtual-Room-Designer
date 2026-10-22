@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Virtual Room Designer — WebXR & Meta Quest 3S</title>
+  <meta name="description" content="Interactive 3D & WebXR Virtual Room Designer for desktop and Meta Quest 3S VR. Customize furniture, wall colors, lighting, and layout.">
+
+  <!-- Google Fonts: Outfit & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- A-Frame WebXR Framework from official CDN -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <style>
+    /* =============================================================
+       CSS DESIGN SYSTEM: MODERN GLASSMORPHISM & SLEEK DARK PALETTE
+       ============================================================= */
+    :root {
+      --bg-glass: rgba(15, 23, 42, 0.84);
+      --bg-glass-card: rgba(30, 41, 59, 0.72);
+      --bg-glass-hover: rgba(51, 65, 85, 0.88);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --border-accent: rgba(99, 102, 241, 0.55);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-elevation: 0 20px 40px -15px rgba(0, 0, 0, 0.65), 0 0 20px rgba(99, 102, 241, 0.18);
+      --transition-smooth: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0b0f19;
+      color: var(--text-main);
+    }
+
+    /* 3D A-Frame Scene Container */
+    #vr-scene-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    a-scene {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 2D Overlay UI Layer */
+    #desktop-ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      transition: opacity 0.3s ease;
+    }
+
+    .interactive-ui {
+      pointer-events: auto;
+    }
+
+    /* Glassmorphism Panel Base */
+    .glass-panel {
+      background: var(--bg-glass);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-elevation);
+    }
+
+    /* Top Navigation Bar */
+    header.top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      gap: 16px;
+    }
+
+    .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
+    }
+
+    .logo-badge svg {
+      width: 22px;
+      height: 22px;
+      fill: #ffffff;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid var(--border-glass);
+      background: var(--bg-glass-card);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .btn:hover {
+      background: var(--bg-glass-hover);
+      border-color: var(--border-accent);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #4338ca);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #7175f7, #4f46e5);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: #fda4af;
+    }
+
+    .btn-danger:hover {
+      background: rgba(244, 63, 94, 0.3);
+      border-color: rgba(244, 63, 94, 0.6);
+    }
+
+    .btn-vr {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
+    }
+
+    .btn-vr:hover {
+      background: linear-gradient(135deg, #10b981, #34d399);
+      box-shadow: 0 6px 22px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Workspace Sidebar Panels */
+    .workspace-layout {
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+      height: calc(100% - 130px);
+      margin-top: 10px;
+    }
+
+    .sidebar-panel {
+      width: 295px;
+      max-height: 100%;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      pointer-events: auto;
+    }
+
+    .sidebar-panel::-webkit-scrollbar {
+      width: 5px;
+    }
+    .sidebar-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .panel-section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    /* Furniture Library Grid */
+    .furniture-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .furniture-card {
+      background: var(--bg-glass-card);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      text-align: center;
+    }
+
+    .furniture-card:hover {
+      background: var(--bg-glass-hover);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .furniture-card .icon-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .furniture-card svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--accent-cyan);
+    }
+
+    .furniture-card .card-title {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    /* Color Swatches Grid */
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .swatch-btn {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: var(--radius-sm);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .swatch-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .swatch-btn.active {
+      border-color: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+      transform: scale(1.08);
+    }
+
+    /* Selected Item Inspector */
+    #selected-inspector {
+      display: none;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .inspector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .inspector-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--accent-cyan);
+    }
+
+    .inspector-tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    /* Movement Nudge D-Pad */
+    .dpad-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      max-width: 130px;
+      margin: 4px auto;
+    }
+
+    .dpad-btn {
+      padding: 6px;
+      background: var(--bg-glass-card);
+      border: 1px solid var(--border-glass);
+      color: var(--text-main);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition-smooth);
+    }
+    .dpad-btn:hover {
+      background: var(--primary);
+    }
+    .dpad-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    /* Chips */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-btn {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      background: var(--bg-glass-card);
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .chip-btn:hover, .chip-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Bottom Info & Hints Bar */
+    footer.bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .hints-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hint-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .kbd {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #ffffff;
+    }
+
+    /* Help Modal Dialog */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-window {
+      max-width: 650px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-glass);
+      padding-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-glass);
+      padding-bottom: 8px;
+    }
+
+    .modal-tab-btn {
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .modal-tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .guide-card {
+      background: var(--bg-glass-card);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      border: 1px solid var(--border-glass);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .guide-card h4 {
+      color: var(--accent-cyan);
+      font-size: 0.95rem;
+    }
+
+    .guide-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .guide-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    /* Toast Notification */
+    #toast-notification {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid var(--border-accent);
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 30px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      font-size: 0.85rem;
+      font-weight: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #toast-notification.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .workspace-layout {
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 10px;
+      }
+      .sidebar-panel {
+        width: 100%;
+        max-height: 220px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ========================================== -->
+  <!-- 3D A-FRAME SCENE (IMMERSIVE WEBXR WORLD)    -->
+  <!-- ========================================== -->
+  <div id="vr-scene-container">
+    <a-scene
+      renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true; highRefreshRate: true; foveationLevel: 1"
+      shadow="type: pcfsoft"
+      background="color: #0b111e"
+      embedded="false"
+      vr-mode-ui="enabled: true">
+
+      <!-- Procedural Offscreen Canvases (Zero External Image Downloads) -->
+      <div style="display: none;" aria-hidden="true">
+        <canvas id="canvas-floor-oak" width="512" height="512"></canvas>
+        <canvas id="canvas-floor-walnut" width="512" height="512"></canvas>
+        <canvas id="canvas-floor-maple" width="512" height="512"></canvas>
+        <canvas id="canvas-floor-marble" width="512" height="512"></canvas>
+        <canvas id="canvas-floor-terrazzo" width="512" height="512"></canvas>
+        <canvas id="canvas-floor-concrete" width="512" height="512"></canvas>
+        <canvas id="canvas-art-1" width="512" height="512"></canvas>
+        <canvas id="canvas-art-2" width="512" height="512"></canvas>
+      </div>
+
+      <!-- Lighting Rig -->
+      <a-light id="ambientLight" type="ambient" color="#f1f5f9" intensity="0.55"></a-light>
+
+      <!-- Directional Sunlight streaming in from window -->
+      <a-light id="sunLight" type="directional" position="4 6 -6" target="#roomCenter"
+               color="#fff4e0" intensity="1.2"
+               cast-shadow="true"
+               shadow-camera-left="-5" shadow-camera-right="5"
+               shadow-camera-top="5" shadow-camera-bottom="-5"
+               shadow-camera-far="25" shadow-camera-near="0.5"
+               shadow-map-width="1024" shadow-map-height="1024"
+               shadow-bias="-0.0002">
+      </a-light>
+
+      <!-- Center Ceiling Chandelier Downlight -->
+      <a-light id="ceilingLight" type="point" position="0 3.0 0" color="#fef08a" intensity="0.75" distance="8" decay="1.8"></a-light>
+
+      <a-entity id="roomCenter" position="0 0.5 0"></a-entity>
+
+      <!-- ============================================== -->
+      <!-- PLAYER RIG & VR CONTROLLER SUPPORT (QUEST 3S)  -->
+      <!-- ============================================== -->
+      <a-entity id="playerRig" position="0 0 2.6">
+        <!-- Headset Camera -->
+        <a-camera id="headsetCamera" position="0 1.6 0" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 20">
+          <a-entity id="mouseCursor"
+                    cursor="rayOrigin: mouse"
+                    raycaster="objects: .clickable, .furniture-item, .floor-plane, .vr-ui-button; far: 40">
+          </a-entity>
+        </a-camera>
+
+        <!-- Left Controller (Meta Quest 3S / Oculus Touch) -->
+        <a-entity id="leftHand"
+                  laser-controls="hand: left"
+                  raycaster="objects: .clickable, .furniture-item, .floor-plane, .vr-ui-button; far: 18; showLine: true; lineColor: #38bdf8; lineOpacity: 0.8"
+                  oculus-touch-controls="hand: left"
+                  vr-controller-handler="hand: left">
+        </a-entity>
+
+        <!-- Right Controller (Meta Quest 3S / Oculus Touch) -->
+        <a-entity id="rightHand"
+                  laser-controls="hand: right"
+                  raycaster="objects: .clickable, .furniture-item, .floor-plane, .vr-ui-button; far: 18; showLine: true; lineColor: #818cf8; lineOpacity: 0.85"
+                  oculus-touch-controls="hand: right"
+                  vr-controller-handler="hand: right">
+        </a-entity>
+      </a-entity>
+
+      <!-- ============================================== -->
+      <!-- ARCHITECTURAL ROOM ENVELOPE (8m x 8m x 3.2m)    -->
+      <!-- ============================================== -->
+      <a-entity id="roomEnvelope">
+        <!-- Floor Plane with Procedural Canvas Texture & Raycast Floor Class -->
+        <a-plane id="roomFloor" class="floor-plane"
+                 position="0 0 0" rotation="-90 0 0"
+                 width="8" height="8"
+                 material="roughness: 0.45; metalness: 0.1; repeat: 4 4"
+                 shadow="receive: true">
+        </a-plane>
+
+        <!-- Ceiling with Recessed Tray & Trim -->
+        <a-plane id="roomCeiling"
+                 position="0 3.2 0" rotation="90 0 0"
+                 width="8" height="8"
+                 material="color: #fafaf9; roughness: 0.85; metalness: 0.05">
+        </a-plane>
+
+        <!-- Ceiling Cove Trim Frame -->
+        <a-box position="0 3.15 -3.9" width="7.8" height="0.1" depth="0.2" material="color: #e2e8f0"></a-box>
+        <a-box position="0 3.15 3.9" width="7.8" height="0.1" depth="0.2" material="color: #e2e8f0"></a-box>
+        <a-box position="-3.9 3.15 0" width="0.2" height="0.1" depth="7.8" material="color: #e2e8f0"></a-box>
+        <a-box position="3.9 3.15 0" width="0.2" height="0.1" depth="7.8" material="color: #e2e8f0"></a-box>
+
+        <!-- Ceiling Chandelier Fixture Body -->
+        <a-entity position="0 3.15 0">
+          <a-cylinder radius="0.4" height="0.04" material="color: #1e293b; metalness: 0.8; roughness: 0.2"></a-cylinder>
+          <a-torus radius="0.7" radius-tubular="0.018" rotation="90 0 0" material="color: #d4af37; metalness: 0.9; roughness: 0.2"></a-torus>
+          <a-torus radius="0.45" radius-tubular="0.015" rotation="90 0 0" position="0 -0.05 0" material="color: #fef08a; emissive: #fef08a; emissiveIntensity: 0.5"></a-torus>
+        </a-entity>
+
+        <!-- Skirting Boards (Baseboards) -->
+        <a-box position="0 0.08 -3.95" width="7.95" height="0.16" depth="0.05" material="color: #e2e8f0; roughness: 0.6"></a-box>
+        <a-box position="0 0.08 3.95" width="7.95" height="0.16" depth="0.05" material="color: #e2e8f0; roughness: 0.6"></a-box>
+        <a-box position="-3.95 0.08 0" width="0.05" height="0.16" depth="7.95" material="color: #e2e8f0; roughness: 0.6"></a-box>
+        <a-box position="3.95 0.08 0" width="0.05" height="0.16" depth="7.95" material="color: #e2e8f0; roughness: 0.6"></a-box>
+
+        <!-- North/Back Wall (Z = -4.0) with Dual Architectural Windows -->
+        <a-box class="room-wall" position="0 0.45 -4.0" width="8" height="0.9" depth="0.1" material="color: #f8fafc; roughness: 0.8" shadow="receive: true"></a-box>
+        <a-box class="room-wall" position="0 2.95 -4.0" width="8" height="0.5" depth="0.1" material="color: #f8fafc; roughness: 0.8" shadow="receive: true"></a-box>
+        <a-box class="room-wall" position="-3.45 1.7 -4.0" width="1.1" height="1.6" depth="0.1" material="color: #f8fafc; roughness: 0.8" shadow="receive: true"></a-box>
+        <a-box class="room-wall" position="0 1.7 -4.0" width="1.2" height="1.6" depth="0.1" material="color: #f8fafc; roughness: 0.8" shadow="receive: true"></a-box>
+        <a-box class="room-wall" position="3.45 1.7 -4.0" width="1.1" height="1.6" depth="0.1" material="color: #f8fafc; roughness: 0.8" shadow="receive: true"></a-box>
+
+        <!-- Left Window Assembly -->
+        <a-entity position="-1.75 1.7 -3.98">
+          <!-- Top & Bottom Frame Rails -->
+          <a-box position="0 0.77 0" width="2.2" height="0.06" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="0 -0.77 0" width="2.2" height="0.06" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <!-- Left & Right Frame Stiles -->
+          <a-box position="-1.07 0 0" width="0.06" height="1.6" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="1.07 0 0" width="0.06" height="1.6" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <!-- Window Sill -->
+          <a-box position="0 -0.83 0.08" width="2.35" height="0.06" depth="0.22" material="color: #f8fafc; roughness: 0.4"></a-box>
+          <!-- Glass Pane (Transparent) -->
+          <a-plane width="2.08" height="1.48" material="color: #cffafe; opacity: 0.25; transparent: true; roughness: 0.05; metalness: 0.9"></a-plane>
+          <!-- Mullions -->
+          <a-box position="0 0 0.02" width="0.03" height="1.48" depth="0.03" material="color: #1e293b"></a-box>
+          <a-box position="0 0 0.02" width="2.08" height="0.03" depth="0.03" material="color: #1e293b"></a-box>
+        </a-entity>
+
+        <!-- Right Window Assembly -->
+        <a-entity position="1.75 1.7 -3.98">
+          <a-box position="0 0.77 0" width="2.2" height="0.06" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="0 -0.77 0" width="2.2" height="0.06" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="-1.07 0 0" width="0.06" height="1.6" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="1.07 0 0" width="0.06" height="1.6" depth="0.06" material="color: #1e293b; metalness: 0.7; roughness: 0.3"></a-box>
+          <a-box position="0 -0.83 0.08" width="2.35" height="0.06" depth="0.22" material="color: #f8fafc; roughness: 0.4"></a-box>
+          <a-plane width="2.08" height="1.48" material="color: #cffafe; opacity: 0.25; transparent: true; roughness: 0.05; metalness: 0.9"></a-plane>
+          <a-box position="0 0 0.02" width="0.03" height="1.48" depth="0.03" material="color: #1e293b"></a-box>
+          <a-box position="0 0 0.02" width="2.08" height="0.03" depth="0.03" material="color: #1e293b"></a-box>
+        </a-entity>
+
+        <!-- Scenic Outdoor Vista -->
+        <a-entity id="outdoorScenery" position="0 1.5 -8.0">
+          <a-plane id="skyBackdrop" width="24" height="14" position="0 2 0" material="color: #7dd3fc; shader: flat"></a-plane>
+          <a-cone position="-5 1 -1" radius-bottom="6" height="5" segments-radial="8" material="color: #334155; roughness: 0.9; shader: flat"></a-cone>
+          <a-cone position="3 1.5 -2" radius-bottom="8" height="6" segments-radial="8" material="color: #1e293b; roughness: 0.9; shader: flat"></a-cone>
+          <a-cone position="8 0.5 -1" radius-bottom="5" height="4" segments-radial="8" material="color: #475569; roughness: 0.9; shader: flat"></a-cone>
+          <a-box position="0 -0.2 3.0" width="9" height="0.2" depth="2" material="color: #334155"></a-box>
+          <a-box position="0 0.5 3.9" width="8.8" height="0.9" depth="0.04" material="color: #94a3b8; opacity: 0.4; transparent: true"></a-box>
+          <a-box position="0 0.95 3.9" width="8.8" height="0.05" depth="0.08" material="color: #1e293b; metalness: 0.8"></a-box>
+          <a-box position="0 0.2 3.6" width="4" height="0.3" depth="0.3" material="color: #2e1065"></a-box>
+          <a-sphere position="-1.5 0.45 3.6" radius="0.25" material="color: #15803d; roughness: 0.9"></a-sphere>
+          <a-sphere position="-0.5 0.5 3.6" radius="0.3" material="color: #166534; roughness: 0.9"></a-sphere>
+          <a-sphere position="0.5 0.48 3.6" radius="0.28" material="color: #15803d; roughness: 0.9"></a-sphere>
+          <a-sphere position="1.5 0.45 3.6" radius="0.25" material="color: #166534; roughness: 0.9"></a-sphere>
+        </a-entity>
+
+        <!-- West / Left Wall (X = -4.0) with Modern Paneling & Art Gallery -->
+        <a-box id="wallWest" class="room-wall" position="-4.0 1.6 0" width="0.1" height="3.2" depth="8"
+               material="color: #f8fafc; roughness: 0.8" shadow="receive: true">
+        </a-box>
+        <!-- Framed Wall Art 1 -->
+        <a-entity position="-3.94 1.8 -1.2" rotation="0 90 0">
+          <a-box width="1.1" height="1.4" depth="0.04" material="color: #0f172a; roughness: 0.4"></a-box>
+          <a-plane id="artPlane1" position="0 0 0.025" width="0.95" height="1.25" material="roughness: 0.5"></a-plane>
+        </a-entity>
+        <!-- Framed Wall Art 2 -->
+        <a-entity position="-3.94 1.8 1.2" rotation="0 90 0">
+          <a-box width="1.1" height="1.4" depth="0.04" material="color: #0f172a; roughness: 0.4"></a-box>
+          <a-plane id="artPlane2" position="0 0 0.025" width="0.95" height="1.25" material="roughness: 0.5"></a-plane>
+        </a-entity>
+
+        <!-- East / Right Wall (X = +4.0) with Architectural Door -->
+        <a-box id="wallEast" class="room-wall" position="4.0 1.6 0" width="0.1" height="3.2" depth="8"
+               material="color: #f8fafc; roughness: 0.8" shadow="receive: true">
+        </a-box>
+        <!-- Door Assembly -->
+        <a-entity position="3.94 1.15 1.5" rotation="0 -90 0">
+          <a-box position="0 0 0" width="1.1" height="2.3" depth="0.06" material="color: #334155; roughness: 0.4"></a-box>
+          <a-box position="0 0 0.02" width="0.98" height="2.2" depth="0.04" material="color: #1e293b; roughness: 0.35"></a-box>
+          <a-box position="0 0.55 0.045" width="0.75" height="0.85" depth="0.015" material="color: #0f172a"></a-box>
+          <a-box position="0 -0.55 0.045" width="0.75" height="0.85" depth="0.015" material="color: #0f172a"></a-box>
+          <a-cylinder position="0.38 0 0.07" rotation="0 0 90" radius="0.015" height="0.14" material="color: #d4af37; metalness: 0.9; roughness: 0.15"></a-cylinder>
+          <a-sphere position="0.38 0 0.06" radius="0.025" material="color: #d4af37; metalness: 0.9; roughness: 0.15"></a-sphere>
+        </a-entity>
+
+        <!-- Wall Sconce on East Wall -->
+        <a-entity position="3.92 2.1 -1.5" rotation="0 -90 0">
+          <a-cylinder radius="0.08" height="0.03" material="color: #1e293b; metalness: 0.8"></a-cylinder>
+          <a-box position="0 0 0.1" width="0.12" height="0.25" depth="0.1" material="color: #fef08a; emissive: #fef08a; emissiveIntensity: 0.6"></a-box>
+          <a-light type="point" color="#fef08a" intensity="0.4" distance="3.5" decay="2"></a-light>
+        </a-entity>
+
+        <!-- South / Front Wall (Z = +4.0) -->
+        <a-box id="wallSouth" class="room-wall" position="0 1.6 4.0" width="8" height="3.2" depth="0.1"
+               material="color: #f8fafc; roughness: 0.8" shadow="receive: true">
+        </a-box>
+      </a-entity>
+
+      <!-- ============================================== -->
+      <!-- DYNAMIC FURNITURE ROOT CONTAINER               -->
+      <!-- ============================================== -->
+      <a-entity id="furnitureContainer"></a-entity>
+
+      <!-- Visual Selection Ring & Corner Brackets -->
+      <a-entity id="selectionGizmo" position="0 -10 0" visible="false">
+        <a-ring rotation="-90 0 0" radius-inner="0.8" radius-outer="0.86" material="color: #6366f1; emissive: #6366f1; emissiveIntensity: 0.8; opacity: 0.85; transparent: true"></a-ring>
+        <a-sphere position="0.85 0.02 0.85" radius="0.06" material="color: #06b6d4; emissive: #06b6d4; emissiveIntensity: 1"></a-sphere>
+        <a-sphere position="-0.85 0.02 0.85" radius="0.06" material="color: #06b6d4; emissive: #06b6d4; emissiveIntensity: 1"></a-sphere>
+        <a-sphere position="0.85 0.02 -0.85" radius="0.06" material="color: #06b6d4; emissive: #06b6d4; emissiveIntensity: 1"></a-sphere>
+        <a-sphere position="-0.85 0.02 -0.85" radius="0.06" material="color: #06b6d4; emissive: #06b6d4; emissiveIntensity: 1"></a-sphere>
+      </a-entity>
+
+      <!-- ============================================== -->
+      <!-- IN-VR 3D FLOATING KIOSK / CONTROL CENTER       -->
+      <!-- Mounted inside the VR space for Meta Quest 3S  -->
+      <!-- ============================================== -->
+      <a-entity id="vrKiosk" position="2.7 1.3 -2.2" rotation="0 -35 0">
+        <!-- Sleek Pedestal & Glass Tablet -->
+        <a-cylinder position="0 -0.7 0" radius="0.04" height="1.4" material="color: #1e293b; metalness: 0.8; roughness: 0.3"></a-cylinder>
+        <a-cylinder position="0 -1.35 0" radius="0.25" height="0.05" material="color: #0f172a; metalness: 0.7"></a-cylinder>
+
+        <!-- Tablet Backing -->
+        <a-box position="0 0 0" width="1.45" height="1.0" depth="0.04" material="color: #0f172a; roughness: 0.2; metalness: 0.8"></a-box>
+        <a-plane position="0 0 0.025" width="1.4" height="0.95" material="color: #182238; roughness: 0.5"></a-plane>
+
+        <!-- Kiosk Header -->
+        <a-text value="ROOM DESIGNER VR • META QUEST" align="center" position="0 0.4 0.03" color="#38bdf8" width="1.8" font="kelsonsans"></a-text>
+        <a-plane position="0 0.36 0.03" width="1.3" height="0.005" material="color: #38bdf8"></a-plane>
+
+        <!-- Row 1: Add Furniture Quick-Buttons -->
+        <a-text value="ADD FURNITURE:" position="-0.62 0.28 0.03" color="#94a3b8" width="1.3"></a-text>
+
+        <!-- Bed Button -->
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="bed" position="-0.48 0.17 0.03" width="0.26" height="0.12" material="color: #312e81">
+          <a-text value="Bed" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <!-- Sofa Button -->
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="sofa" position="-0.16 0.17 0.03" width="0.26" height="0.12" material="color: #312e81">
+          <a-text value="Sofa" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <!-- Chair Button -->
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="chair" position="0.16 0.17 0.03" width="0.26" height="0.12" material="color: #312e81">
+          <a-text value="Chair" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <!-- Table Button -->
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="table" position="0.48 0.17 0.03" width="0.26" height="0.12" material="color: #312e81">
+          <a-text value="Table" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+
+        <!-- Row 2: More Furniture -->
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="wardrobe" position="-0.48 0.02 0.03" width="0.26" height="0.12" material="color: #1e1b4b">
+          <a-text value="Wardrobe" align="center" position="0 0 0.01" color="#ffffff" width="1.3"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="bookshelf" position="-0.16 0.02 0.03" width="0.26" height="0.12" material="color: #1e1b4b">
+          <a-text value="Shelf" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="lamp" position="0.16 0.02 0.03" width="0.26" height="0.12" material="color: #1e1b4b">
+          <a-text value="Lamp" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="spawn" data-type="plant" position="0.48 0.02 0.03" width="0.26" height="0.12" material="color: #1e1b4b">
+          <a-text value="Plant" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+
+        <!-- Row 3: Object Edit Controls (Rotate, Duplicate, Delete) -->
+        <a-text value="SELECTED ACTIONS:" position="-0.62 -0.11 0.03" color="#94a3b8" width="1.3"></a-text>
+
+        <a-plane class="vr-ui-button clickable" data-action="rotate-left" position="-0.48 -0.21 0.03" width="0.26" height="0.12" material="color: #0284c7">
+          <a-text value="Rot -90" align="center" position="0 0 0.01" color="#ffffff" width="1.3"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="rotate-right" position="-0.16 -0.21 0.03" width="0.26" height="0.12" material="color: #0284c7">
+          <a-text value="Rot +90" align="center" position="0 0 0.01" color="#ffffff" width="1.3"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="duplicate" position="0.16 -0.21 0.03" width="0.26" height="0.12" material="color: #059669">
+          <a-text value="Clone" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="delete" position="0.48 -0.21 0.03" width="0.26" height="0.12" material="color: #e11d48">
+          <a-text value="Delete" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+
+        <!-- Row 4: Room Theme Cycle & Reset -->
+        <a-plane class="vr-ui-button clickable" data-action="cycle-walls" position="-0.33 -0.37 0.03" width="0.58" height="0.12" material="color: #475569">
+          <a-text value="Next Wall Paint" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+        <a-plane class="vr-ui-button clickable" data-action="reset" position="0.33 -0.37 0.03" width="0.58" height="0.12" material="color: #dc2626">
+          <a-text value="Reset Room" align="center" position="0 0 0.01" color="#ffffff" width="1.4"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Standing VR Instructions Easel near Entrance -->
+      <a-entity position="-2.7 1.2 2.6" rotation="0 140 0">
+        <a-box width="1.2" height="1.4" depth="0.04" material="color: #0f172a; roughness: 0.3"></a-box>
+        <a-plane position="0 0 0.025" width="1.15" height="1.35" material="color: #1e293b"></a-plane>
+        <a-text value="META QUEST 3S GUIDE" align="center" position="0 0.52 0.03" color="#38bdf8" width="1.6" font="kelsonsans"></a-text>
+        <a-text value="• Laser Pointer + Trigger:\n  Point at furniture, hold trigger\n  to drag across room floor.\n\n• Trigger on Floating Kiosk:\n  Add furniture, rotate & delete.\n\n• Thumbstick Left/Right:\n  Rotate selected furniture.\n\n• Desktop Fallback:\n  Mouse click, drag & WASD walk."
+                position="-0.5 0.05 0.03" color="#f8fafc" width="1.1" line-height="56"></a-text>
+      </a-entity>
+
+    </a-scene>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 2D RESPONSIVE DESKTOP & MOBILE OVERLAY UI  -->
+  <!-- ========================================== -->
+  <div id="desktop-ui">
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav glass-panel interactive-ui">
+      <div class="logo-group">
+        <div class="logo-badge">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <h1 class="brand-title">
+            RoomCraft VR
+            <span class="brand-badge">Meta Quest 3S</span>
+          </h1>
+          <p style="font-size: 0.72rem; color: var(--text-muted);">WebXR 3D Interactive Room Designer</p>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="top-actions">
+        <!-- View Angle Switcher -->
+        <button id="btnViewToggle" class="btn" title="Toggle between First-Person and Top-Down Bird's Eye View">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span id="viewModeText">Bird's Eye View</span>
+        </button>
+
+        <!-- Lighting Mode Switcher -->
+        <button id="btnLightingToggle" class="btn" title="Cycle Day / Sunset / Night Lighting">
+          <svg viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1z"/></svg>
+          <span id="lightModeText">Daylight</span>
+        </button>
+
+        <!-- Save Design -->
+        <button id="btnSave" class="btn" title="Save current room design to local storage">
+          <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+          Save
+        </button>
+
+        <!-- Load Design -->
+        <button id="btnLoad" class="btn" title="Restore previously saved layout">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+          Load
+        </button>
+
+        <!-- Reset Room -->
+        <button id="btnReset" class="btn btn-danger" title="Clear all and reset to staged default">
+          <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.77 20 14.44 20 13c0-4.42-3.58-8-8-8zm-6 8c0-1.01.25-1.97.7-2.8L5.24 8.74C4.46 10.23 4 11.56 4 13c0 4.42 3.58 8 8 8v4l5-5-5-5v4c-3.31 0-6-2.69-6-6z"/></svg>
+          Reset
+        </button>
+
+        <!-- Help Modal Button -->
+        <button id="btnHelp" class="btn" title="Open instructions & Quest 3S VR guide">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+          Help
+        </button>
+
+        <!-- Direct Enter VR Button -->
+        <button id="btnEnterVR" class="btn btn-vr" title="Launch Immersive VR Mode on Meta Quest 3S">
+          <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h7l2 3 2-3h7c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-14 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm10 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+          Enter VR
+        </button>
+      </div>
+    </header>
+
+
+    <!-- Main Workspace Sidebar Panels -->
+    <main class="workspace-layout">
+
+      <!-- LEFT SIDEBAR: Furniture Library Catalog -->
+      <aside class="sidebar-panel glass-panel">
+        <div>
+          <h3 class="panel-section-title">
+            <span>Furniture Library</span>
+            <span style="font-size: 0.7rem; color: var(--accent-cyan);">8 Items</span>
+          </h3>
+          <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 12px;">Click any item to place it in the room:</p>
+
+          <div class="furniture-grid">
+            <!-- Bed -->
+            <div class="furniture-card" data-spawn="bed">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M20 9.557V3h-2v2H6V3H4v6.557C2.81 10.25 2 11.525 2 13v6h2v-2h16v2h2v-6c0-1.475-.81-2.75-2-3.443zM6 7h12v2.557C17.417 9.213 16.732 9 16 9h-3V7zm-2 6c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v2H4v-2z"/></svg>
+              </div>
+              <span class="card-title">Bed</span>
+            </div>
+
+            <!-- Sofa -->
+            <div class="furniture-card" data-spawn="sofa">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M20 10V7c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v3c-1.1 0-2 .9-2 2v5h2v2h2v-2h12v2h2v-2h2v-5c0-1.1-.9-2-2-2zM6 7h12v3H6V7zm14 7H4v-2c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v2z"/></svg>
+              </div>
+              <span class="card-title">Sofa</span>
+            </div>
+
+            <!-- Chair -->
+            <div class="furniture-card" data-spawn="chair">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M7 19h2v-4h6v4h2v-6H7v6zm12-9V3c0-.55-.45-1-1-1H6c-.55 0-1 .45-1 1v7c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2zm-2 0H7V4h10v6z"/></svg>
+              </div>
+              <span class="card-title">Lounge Chair</span>
+            </div>
+
+            <!-- Dining Table -->
+            <div class="furniture-card" data-spawn="table">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M4 6h16c1.1 0 2 .9 2 2v2H2V8c0-1.1.9-2 2-2zm1 6h2v8H5v-8zm12 0h2v8h-2v-8z"/></svg>
+              </div>
+              <span class="card-title">Table</span>
+            </div>
+
+            <!-- Wardrobe -->
+            <div class="furniture-card" data-spawn="wardrobe">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 16H5V5h6v14zm8 0h-6V5h6v14zm-9-8H8v-2h2v2zm6 0h-2v-2h2v2z"/></svg>
+              </div>
+              <span class="card-title">Wardrobe</span>
+            </div>
+
+            <!-- Bookshelf -->
+            <div class="furniture-card" data-spawn="bookshelf">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M4 2v20h16V2H4zm2 2h12v4H6V4zm0 6h12v4H6v-4zm0 6h12v4H6v-4z"/></svg>
+              </div>
+              <span class="card-title">Bookshelf</span>
+            </div>
+
+            <!-- Floor Lamp -->
+            <div class="furniture-card" data-spawn="lamp">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M13 2h-2L7 9h10l-4-7zm-1 9v9h3v2H9v-2h3v-9h-1z"/></svg>
+              </div>
+              <span class="card-title">Floor Lamp</span>
+            </div>
+
+            <!-- Plant -->
+            <div class="furniture-card" data-spawn="plant">
+              <div class="icon-wrap">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4 21h16l-.97-3.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm-1 16H6.18l.45-1.55c1.28-1.57 2.05-3.55 2.05-5.7 0-.96-.16-1.88-.45-2.75h5.54c-.29.87-.45 1.79-.45 2.75 0 2.15.77 4.13 2.05 5.7l.45 1.55H11z"/></svg>
+              </div>
+              <span class="card-title">Indoor Plant</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+
+      <!-- RIGHT SIDEBAR: Selected Object Inspector & Room Customizer -->
+      <aside class="sidebar-panel glass-panel">
+
+        <!-- Selected Object Inspector -->
+        <div id="selected-inspector">
+          <div class="inspector-header">
+            <span class="inspector-title" id="inspectorObjectName">Selected Furniture</span>
+            <button id="btnDeselect" style="background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer;" title="Deselect">✕</button>
+          </div>
+
+          <div style="font-size: 0.72rem; color: var(--text-muted);">
+            Position: <span id="posCoords" style="color: #fff; font-family: monospace;">X: 0.0, Z: 0.0</span> | Rot: <span id="rotDegrees" style="color: #fff; font-family: monospace;">0°</span>
+          </div>
+
+          <!-- Nudge D-Pad -->
+          <div style="text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">Move Furniture</div>
+            <div class="dpad-container">
+              <div></div>
+              <button class="dpad-btn" id="btnNudgeNorth" title="Move Forward (-Z)">
+                <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>
+              </button>
+              <div></div>
+              <button class="dpad-btn" id="btnNudgeWest" title="Move Left (-X)">
+                <svg viewBox="0 0 24 24"><path d="M14 7l-5 5 5 5z"/></svg>
+              </button>
+              <div style="display:flex; align-items:center; justify-content:center; font-size:0.65rem; color:var(--text-muted);">●</div>
+              <button class="dpad-btn" id="btnNudgeEast" title="Move Right (+X)">
+                <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5z"/></svg>
+              </button>
+              <div></div>
+              <button class="dpad-btn" id="btnNudgeSouth" title="Move Backward (+Z)">
+                <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+              </button>
+              <div></div>
+            </div>
+          </div>
+
+          <!-- Quick Transform Actions -->
+          <div class="inspector-tools">
+            <button id="btnRotateCW" class="btn" style="padding: 6px 8px; font-size: 0.78rem;">
+              <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+              Rotate 90°
+            </button>
+            <button id="btnDuplicate" class="btn" style="padding: 6px 8px; font-size: 0.78rem;">
+              <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+              Duplicate
+            </button>
+          </div>
+          <button id="btnDelete" class="btn btn-danger" style="width: 100%; justify-content: center; padding: 6px 8px; font-size: 0.78rem;">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete Item
+          </button>
+
+          <!-- Furniture Color Swatches -->
+          <div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px;">Fabric & Accent Color:</div>
+            <div class="swatch-grid" id="furnitureColorSwatches">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Room Architecture Styling (Walls & Floors) -->
+        <div>
+          <h3 class="panel-section-title">
+            <span>Wall Color</span>
+            <span id="activeWallName" style="font-size: 0.7rem; color: var(--accent-cyan);">Warm White</span>
+          </h3>
+          <div class="swatch-grid" id="wallColorSwatches">
+            <!-- Swatches dynamically generated -->
+          </div>
+        </div>
+
+        <div>
+          <h3 class="panel-section-title">
+            <span>Floor Finish</span>
+            <span id="activeFloorName" style="font-size: 0.7rem; color: var(--accent-cyan);">Warm Oak</span>
+          </h3>
+          <div class="chip-group" id="floorFinishChips">
+            <button class="chip-btn active" data-floor="oak">Warm Oak</button>
+            <button class="chip-btn" data-floor="walnut">Dark Walnut</button>
+            <button class="chip-btn" data-floor="maple">Light Maple</button>
+            <button class="chip-btn" data-floor="marble">Italian Marble</button>
+            <button class="chip-btn" data-floor="terrazzo">Terrazzo</button>
+            <button class="chip-btn" data-floor="concrete">Loft Concrete</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="panel-section-title">
+            <span>Lighting Ambiance</span>
+          </h3>
+          <div class="chip-group" id="lightingChips">
+            <button class="chip-btn active" data-lighting="day">Daylight</button>
+            <button class="chip-btn" data-lighting="sunset">Sunset Glow</button>
+            <button class="chip-btn" data-lighting="night">Moody Night</button>
+          </div>
+        </div>
+
+      </aside>
+
+    </main>
+
+
+    <!-- Bottom Status & Interaction Bar -->
+    <footer class="bottom-bar glass-panel interactive-ui">
+      <div class="hints-group">
+        <div class="hint-item">
+          <span class="kbd">Click</span>
+          <span>Select Furniture</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">Drag</span>
+          <span>Move on Floor</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">W A S D</span>
+          <span>Walk</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">R</span>
+          <span>Rotate 90°</span>
+        </div>
+        <div class="hint-item">
+          <span class="kbd">Del</span>
+          <span>Delete</span>
+        </div>
+      </div>
+      <div style="font-size: 0.75rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+        Quest 3S 6DoF Ready
+      </div>
+    </footer>
+
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- INSTRUCTIONS & QUEST 3S VR HELP MODAL      -->
+  <!-- ========================================== -->
+  <div id="helpModal" class="modal-backdrop interactive-ui">
+    <div class="modal-window glass-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <svg style="width: 24px; height: 24px; fill: var(--primary);" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+          User Guide & VR Controls
+        </h3>
+        <button id="btnCloseHelp" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <button class="modal-tab-btn active" data-tab="tab-quest">Meta Quest 3S VR</button>
+        <button class="modal-tab-btn" data-tab="tab-desktop">Desktop Mode</button>
+        <button class="modal-tab-btn" data-tab="tab-features">Features & Setup</button>
+      </div>
+
+      <!-- Tab 1: Meta Quest 3S -->
+      <div id="tab-quest" class="tab-content" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="guide-card">
+          <h4>🥽 Meta Quest 3S VR Controller Controls</h4>
+          <ul class="guide-list">
+            <li><strong>Laser Point & Trigger:</strong> Aim your controller laser raycaster at any furniture piece and pull the trigger to select it.</li>
+            <li><strong>Grab & Drag:</strong> Hold the controller Trigger while pointing at furniture to drag it freely across the room floor in 3D space. Release trigger to place it. Haptic vibration confirms pickup and drop.</li>
+            <li><strong>In-VR 3D Kiosk:</strong> A floating interactive kiosk is stationed in the room. Point your laser at any button on the kiosk (Add Bed/Sofa/Chair, Rotate, Clone, Delete, Wall Paint) and click trigger to design without removing your headset!</li>
+            <li><strong>Thumbsticks:</strong> Push thumbstick left or right to rotate the active selected object in 45° steps.</li>
+            <li><strong>Buttons (A / X):</strong> Quick-rotate selected furniture by 90°.</li>
+            <li><strong>Buttons (B / Y):</strong> Duplicate or delete selected furniture.</li>
+          </ul>
+        </div>
+
+        <div class="guide-card">
+          <h4>🌐 Opening on Meta Quest 3S Headset</h4>
+          <p style="font-size: 0.85rem; line-height: 1.5; color: var(--text-muted);">
+            WebXR requires a <strong>Secure Context</strong> (<code>https://</code> or <code>localhost</code>).<br>
+            1. <strong>Local Network HTTPS / ngrok:</strong> Serve the folder via <code>python -m http.server 8000</code> and forward via <code>ngrok http 8000</code> to obtain a secure HTTPS URL.<br>
+            2. <strong>Meta Quest Browser:</strong> In your Quest 3S headset, launch the Meta Quest Browser, open the HTTPS link, and click the <strong>"Enter VR"</strong> button!<br>
+            3. The browser will enter full 6DoF immersive room-scale VR with your Touch Plus controllers active.
+          </p>
+        </div>
+      </div>
+
+      <!-- Tab 2: Desktop Mode -->
+      <div id="tab-desktop" class="tab-content" style="display: none; flex-direction: column; gap: 12px;">
+        <div class="guide-card">
+          <h4>🖥️ Desktop Mouse & Keyboard Controls</h4>
+          <ul class="guide-list">
+            <li><strong>Select Furniture:</strong> Click directly on any 3D furniture item with your mouse.</li>
+            <li><strong>Drag Furniture:</strong> Click and drag furniture across the floor plane with your mouse. The camera look controls pause automatically during dragging for precision control.</li>
+            <li><strong>Walk Around:</strong> Use <span class="kbd">W</span> <span class="kbd">A</span> <span class="kbd">S</span> <span class="kbd">D</span> keys to navigate inside the room.</li>
+            <li><strong>Look Around:</strong> Click and drag on empty room space to rotate your camera view.</li>
+            <li><strong>Rotate Furniture:</strong> Press <span class="kbd">R</span> or click the "Rotate 90°" button.</li>
+            <li><strong>Delete Furniture:</strong> Press <span class="kbd">Delete</span> or <span class="kbd">Backspace</span>.</li>
+            <li><strong>Bird's Eye Mode:</strong> Click the "Bird's Eye View" button in the top bar to switch to an architectural dollhouse view! The ceiling hides automatically for an unobstructed top-down view.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Tab 3: Features & Setup -->
+      <div id="tab-features" class="tab-content" style="display: none; flex-direction: column; gap: 12px;">
+        <div class="guide-card">
+          <h4>✨ Implemented Core Features</h4>
+          <ul class="guide-list">
+            <li><strong>Self-Contained:</strong> 100% contained in one single HTML file. No npm, no external model files, no build step required.</li>
+            <li><strong>Zero-Dependency Procedural Textures:</strong> Parquet oak, dark walnut, light maple, Italian marble, terrazzo, polished concrete, and abstract wall art are generated dynamically via HTML5 canvas.</li>
+            <li><strong>Procedural Sound & Haptics:</strong> Web Audio API synthesizes UI feedback clicks, placement thuds, and save chimes, with Quest controller haptic vibration.</li>
+            <li><strong>8 Rich Furniture Types:</strong> Bed, Sofa, Lounge Chair, Table, Wardrobe, Bookshelf, Floor Lamp (with real point light), and Indoor Plant.</li>
+            <li><strong>Boundary Clamping:</strong> Keeps furniture strictly inside the 8m x 8m room boundaries.</li>
+            <li><strong>Browser LocalStorage:</strong> Full persistence of furniture layout, wall colors, floor materials, and lighting presets.</li>
+          </ul>
+        </div>
+      </div>
+
+      <button id="btnCloseHelpFooter" class="btn btn-primary" style="align-self: flex-end;">Got It</button>
+    </div>
+  </div>
+
+
+  <!-- Toast Notification Message -->
+  <div id="toast-notification">
+    <svg style="width: 18px; height: 18px; fill: #10b981;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    <span id="toastText">Action completed</span>
+  </div>
+
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT: PROCEDURAL TEXTURES, SOUND, VR & APPLICATION LOGIC -->
+  <!-- ============================================================== -->
+  <script>
+    /* -------------------------------------------------------------
+       1. SYNTHESIZED WEB AUDIO API SOUND EFFECTS & HAPTICS
+       ------------------------------------------------------------- */
+    const SoundEffects = {
+      ctx: null,
+      init: function () {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.ctx = new AudioContextClass();
+        }
+      },
+      playTone: function (freq, type, duration, gainLevel = 0.12) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+          gain.gain.setValueAtTime(gainLevel, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+          // Audio autoplay policy fallback
+        }
+      },
+      click: function () { this.playTone(850, 'sine', 0.08, 0.08); },
+      place: function () { this.playTone(180, 'triangle', 0.14, 0.15); },
+      rotate: function () { this.playTone(520, 'sine', 0.1, 0.1); },
+      delete: function () {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.18);
+          gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.18);
+        } catch (e) {}
+      },
+      success: function () {
+        this.playTone(523.25, 'sine', 0.12, 0.1);
+        setTimeout(() => this.playTone(659.25, 'sine', 0.2, 0.1), 100);
+      }
+    };
+
+
+    /* -------------------------------------------------------------
+       2. PROCEDURAL TEXTURES GENERATION (HTML5 Canvas to Data URLs)
+       ------------------------------------------------------------- */
+    const TextureStore = {};
+
+    function initProceduralTextures() {
+      // 1. Oak Wood Planks
+      const cOak = document.getElementById('canvas-floor-oak');
+      if (cOak) {
+        const ctx = cOak.getContext('2d');
+        ctx.fillStyle = '#b78350';
+        ctx.fillRect(0, 0, 512, 512);
+        const plankHeight = 64;
+        for (let y = 0; y < 512; y += plankHeight) {
+          ctx.strokeStyle = 'rgba(70, 40, 15, 0.4)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(512, y);
+          ctx.stroke();
+
+          const offset = (y / plankHeight) % 2 === 0 ? 0 : 128;
+          for (let x = offset; x < 512; x += 256) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + plankHeight);
+            ctx.stroke();
+          }
+
+          for (let i = 0; i < 5; i++) {
+            ctx.strokeStyle = 'rgba(90, 50, 20, 0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, y + i * 12 + Math.random() * 4);
+            ctx.bezierCurveTo(150, y + i * 12 + 6, 350, y + i * 12 - 4, 512, y + i * 12 + 2);
+            ctx.stroke();
+          }
+        }
+        TextureStore['oak'] = cOak.toDataURL('image/png');
+      }
+
+      // 2. Dark Walnut
+      const cWalnut = document.getElementById('canvas-floor-walnut');
+      if (cWalnut) {
+        const ctx = cWalnut.getContext('2d');
+        ctx.fillStyle = '#3e2718';
+        ctx.fillRect(0, 0, 512, 512);
+        for (let y = 0; y < 512; y += 64) {
+          ctx.strokeStyle = 'rgba(20, 10, 5, 0.6)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(512, y);
+          ctx.stroke();
+          const offset = (y / 64) % 2 === 0 ? 0 : 128;
+          for (let x = offset; x < 512; x += 256) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 64);
+            ctx.stroke();
+          }
+        }
+        TextureStore['walnut'] = cWalnut.toDataURL('image/png');
+      }
+
+      // 3. Light Maple
+      const cMaple = document.getElementById('canvas-floor-maple');
+      if (cMaple) {
+        const ctx = cMaple.getContext('2d');
+        ctx.fillStyle = '#e5cca8';
+        ctx.fillRect(0, 0, 512, 512);
+        for (let y = 0; y < 512; y += 64) {
+          ctx.strokeStyle = 'rgba(160, 125, 80, 0.25)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(512, y);
+          ctx.stroke();
+          const offset = (y / 64) % 2 === 0 ? 0 : 128;
+          for (let x = offset; x < 512; x += 256) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 64);
+            ctx.stroke();
+          }
+        }
+        TextureStore['maple'] = cMaple.toDataURL('image/png');
+      }
+
+      // 4. Italian Marble Tile
+      const cMarble = document.getElementById('canvas-floor-marble');
+      if (cMarble) {
+        const ctx = cMarble.getContext('2d');
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, 508, 508);
+        ctx.beginPath();
+        ctx.moveTo(256, 0); ctx.lineTo(256, 512);
+        ctx.moveTo(0, 256); ctx.lineTo(512, 256);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.18)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(20, 40);
+        ctx.bezierCurveTo(120, 180, 280, 120, 460, 380);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(180, 20);
+        ctx.bezierCurveTo(240, 280, 360, 320, 480, 480);
+        ctx.stroke();
+        TextureStore['marble'] = cMarble.toDataURL('image/png');
+      }
+
+      // 5. Terrazzo
+      const cTerrazzo = document.getElementById('canvas-floor-terrazzo');
+      if (cTerrazzo) {
+        const ctx = cTerrazzo.getContext('2d');
+        ctx.fillStyle = '#ded9d2';
+        ctx.fillRect(0, 0, 512, 512);
+        const chips = ['#8f4937', '#2e4057', '#d4af37', '#99aab5', '#ffffff', '#4a5568'];
+        for (let i = 0; i < 350; i++) {
+          ctx.fillStyle = chips[Math.floor(Math.random() * chips.length)];
+          const x = Math.random() * 512;
+          const y = Math.random() * 512;
+          const size = 3 + Math.random() * 8;
+          ctx.beginPath();
+          ctx.arc(x, y, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        TextureStore['terrazzo'] = cTerrazzo.toDataURL('image/png');
+      }
+
+      // 6. Polished Loft Concrete
+      const cConcrete = document.getElementById('canvas-floor-concrete');
+      if (cConcrete) {
+        const ctx = cConcrete.getContext('2d');
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(0, 0, 512, 512);
+        for (let i = 0; i < 4000; i++) {
+          ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)';
+          ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+        }
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(2, 2, 508, 508);
+        TextureStore['concrete'] = cConcrete.toDataURL('image/png');
+      }
+
+      // 7. Wall Art Pieces (Modern Minimalist Abstract)
+      const cArt1 = document.getElementById('canvas-art-1');
+      if (cArt1) {
+        const ctx = cArt1.getContext('2d');
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillStyle = '#e0e7ff';
+        ctx.beginPath(); ctx.arc(256, 256, 180, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#6366f1';
+        ctx.beginPath(); ctx.arc(220, 220, 100, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath(); ctx.rect(240, 260, 150, 120); ctx.fill();
+        ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(80, 380); ctx.lineTo(440, 140); ctx.stroke();
+        const art1Url = cArt1.toDataURL('image/png');
+        const plane1 = document.getElementById('artPlane1');
+        if (plane1) plane1.setAttribute('material', 'src', art1Url);
+      }
+
+      const cArt2 = document.getElementById('canvas-art-2');
+      if (cArt2) {
+        const ctx = cArt2.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillStyle = '#06b6d4';
+        ctx.beginPath(); ctx.arc(256, 180, 120, 0, Math.PI); ctx.fill();
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.arc(256, 320, 90, Math.PI, 0); ctx.fill();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(256, 256, 160, 0, Math.PI * 2); ctx.stroke();
+        const art2Url = cArt2.toDataURL('image/png');
+        const plane2 = document.getElementById('artPlane2');
+        if (plane2) plane2.setAttribute('material', 'src', art2Url);
+      }
+
+      // Apply initial floor texture
+      const floorEl = document.getElementById('roomFloor');
+      if (floorEl && TextureStore['oak']) {
+        floorEl.setAttribute('material', 'src', TextureStore['oak']);
+      }
+    }
+
+
+    /* -------------------------------------------------------------
+       3. DESIGN PALETTES & COLOR SWATCH CONFIGURATIONS
+       ------------------------------------------------------------- */
+    const WALL_COLORS = [
+      { name: 'Warm White', hex: '#f8fafc' },
+      { name: 'Alabaster Cream', hex: '#ece4d8' },
+      { name: 'Nordic Sage', hex: '#9caea0' },
+      { name: 'Slate Blue', hex: '#5c6d7d' },
+      { name: 'Terracotta', hex: '#a45a4a' },
+      { name: 'Charcoal Accent', hex: '#2a2e33' },
+      { name: 'Blush Mauve', hex: '#d3c4ce' },
+      { name: 'Forest Pine', hex: '#384d3e' },
+      { name: 'Mustard Gold', hex: '#c59b27' },
+      { name: 'Modern Greige', hex: '#c7c2b8' }
+    ];
+
+    const FURNITURE_COLORS = [
+      { name: 'Indigo Velvet', hex: '#4f46e5' },
+      { name: 'Ocean Cyan', hex: '#0284c7' },
+      { name: 'Forest Emerald', hex: '#059669' },
+      { name: 'Terracotta Rust', hex: '#c2410c' },
+      { name: 'Mustard Velvet', hex: '#d97706' },
+      { name: 'Rose Berry', hex: '#e11d48' },
+      { name: 'Midnight Charcoal', hex: '#1e293b' },
+      { name: 'Nordic Cream', hex: '#f1f5f9' },
+      { name: 'Olive Green', hex: '#4d7c0f' },
+      { name: 'Cognac Leather', hex: '#78350f' }
+    ];
+
+    let currentWallColorIndex = 0;
+    let currentFloorType = 'oak';
+    let currentLightingMode = 'day';
+    let isBirdsEyeView = false;
+
+
+    /* -------------------------------------------------------------
+       4. A-FRAME CUSTOM COMPONENT FOR META QUEST 3S CONTROLLERS
+       ------------------------------------------------------------- */
+    AFRAME.registerComponent('vr-controller-handler', {
+      schema: { hand: { type: 'string', default: 'right' } },
+      init: function () {
+        const el = this.el;
+
+        // Trigger Pressed (Select / Grab Drag)
+        el.addEventListener('triggerdown', () => this.handleTriggerDown());
+
+        // Trigger Released (Drop)
+        el.addEventListener('triggerup', () => this.handleTriggerUp());
+
+        // Grip Pressed (Rotate 90°)
+        el.addEventListener('gripdown', () => {
+          if (RoomApp.selectedEntity) {
+            RoomApp.rotateSelected(90);
+            this.pulseHaptic(0.5, 40);
+          }
+        });
+
+        // Quest 3S Thumbstick Axis Moved (Rotate selected object with stick)
+        el.addEventListener('axismove', (evt) => {
+          const axes = evt.detail.axis;
+          if (axes && Math.abs(axes[0]) > 0.65 && RoomApp.selectedEntity) {
+            if (!this.stickCooldown) {
+              const delta = axes[0] > 0 ? 45 : -45;
+              RoomApp.rotateSelected(delta);
+              this.pulseHaptic(0.4, 30);
+              this.stickCooldown = true;
+              setTimeout(() => { this.stickCooldown = false; }, 320);
+            }
+          }
+        });
+
+        // Face Buttons
+        el.addEventListener('abuttondown', () => { RoomApp.rotateSelected(90); this.pulseHaptic(0.5, 40); });
+        el.addEventListener('xbuttondown', () => { RoomApp.rotateSelected(90); this.pulseHaptic(0.5, 40); });
+        el.addEventListener('bbuttondown', () => { RoomApp.duplicateSelected(); this.pulseHaptic(0.6, 50); });
+        el.addEventListener('ybuttondown', () => { RoomApp.deleteSelected(); this.pulseHaptic(0.7, 60); });
+      },
+
+      pulseHaptic: function (intensity, durationMs) {
+        try {
+          const session = this.el.sceneEl.renderer.xr.getSession();
+          if (session && session.inputSources) {
+            const handSide = this.data.hand;
+            for (const source of session.inputSources) {
+              if (source.handedness === handSide && source.gamepad && source.gamepad.hapticActuators) {
+                if (source.gamepad.hapticActuators[0]) {
+                  source.gamepad.hapticActuators[0].pulse(intensity, durationMs);
+                }
+              }
+            }
+          }
+        } catch (e) {}
+      },
+
+      handleTriggerDown: function () {
+        const raycaster = this.el.components.raycaster;
+        if (!raycaster) return;
+
+        const intersections = raycaster.intersectedEls;
+        if (!intersections || intersections.length === 0) return;
+
+        // Check if hitting In-VR Kiosk Button
+        const uiBtn = intersections.find(item => item.classList.contains('vr-ui-button'));
+        if (uiBtn) {
+          RoomApp.handleVRKioskAction(uiBtn);
+          this.pulseHaptic(0.7, 50);
+          return;
+        }
+
+        // Check if hitting Furniture
+        const furnitureEl = intersections.find(item => item.closest('.furniture-item'));
+        if (furnitureEl) {
+          const rootFurniture = furnitureEl.closest('.furniture-item');
+          RoomApp.selectFurniture(rootFurniture);
+          this.isDragging = true;
+          this.draggedEntity = rootFurniture;
+          this.pulseHaptic(0.6, 40);
+          SoundEffects.click();
+          return;
+        }
+
+        // Check if clicked Floor Plane while having selected furniture
+        const floorHit = intersections.find(item => item.classList.contains('floor-plane'));
+        if (floorHit && RoomApp.selectedEntity) {
+          const point = raycaster.getIntersection(floorHit)?.point;
+          if (point) {
+            RoomApp.moveFurnitureTo(RoomApp.selectedEntity, point.x, point.z);
+            SoundEffects.place();
+          }
+        }
+      },
+
+      handleTriggerUp: function () {
+        if (this.isDragging) {
+          SoundEffects.place();
+          this.pulseHaptic(0.3, 30);
+        }
+        this.isDragging = false;
+        this.draggedEntity = null;
+      },
+
+      tick: function () {
+        if (this.isDragging && this.draggedEntity) {
+          const raycaster = this.el.components.raycaster;
+          if (raycaster && raycaster.raycaster) {
+            const threeRay = raycaster.raycaster.ray;
+            if (threeRay) {
+              const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+              const hitPoint = new THREE.Vector3();
+              if (threeRay.intersectPlane(floorPlane, hitPoint)) {
+                RoomApp.moveFurnitureTo(this.draggedEntity, hitPoint.x, hitPoint.z);
+              }
+            }
+          }
+        }
+      }
+    });
+
+
+    /* -------------------------------------------------------------
+       5. PROCEDURAL 3D FURNITURE FACTORY
+       ------------------------------------------------------------- */
+    const FurnitureTemplates = {
+      // 1. Bed
+      bed: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'bed');
+        root.setAttribute('data-color', color || '#4f46e5');
+
+        const base = document.createElement('a-box');
+        base.setAttribute('position', '0 0.15 0');
+        base.setAttribute('width', '2.0');
+        base.setAttribute('height', '0.3');
+        base.setAttribute('depth', '2.2');
+        base.setAttribute('material', 'color: #3b271d; roughness: 0.6');
+        base.setAttribute('shadow', 'cast: true; receive: true');
+        root.appendChild(base);
+
+        const headboard = document.createElement('a-box');
+        headboard.setAttribute('position', '0 0.7 -1.05');
+        headboard.setAttribute('width', '2.1');
+        headboard.setAttribute('height', '0.9');
+        headboard.setAttribute('depth', '0.15');
+        headboard.setAttribute('material', 'color: #271a13; roughness: 0.5');
+        headboard.setAttribute('shadow', 'cast: true');
+        root.appendChild(headboard);
+
+        const mattress = document.createElement('a-box');
+        mattress.setAttribute('position', '0 0.42 0.05');
+        mattress.setAttribute('width', '1.85');
+        mattress.setAttribute('height', '0.28');
+        mattress.setAttribute('depth', '2.05');
+        mattress.setAttribute('material', 'color: #f8fafc; roughness: 0.9');
+        root.appendChild(mattress);
+
+        const duvet = document.createElement('a-box');
+        duvet.className = 'primary-color-part';
+        duvet.setAttribute('position', '0 0.48 0.45');
+        duvet.setAttribute('width', '1.88');
+        duvet.setAttribute('height', '0.18');
+        duvet.setAttribute('depth', '1.25');
+        duvet.setAttribute('material', `color: ${color || '#4f46e5'}; roughness: 0.75`);
+        duvet.setAttribute('shadow', 'cast: true');
+        root.appendChild(duvet);
+
+        const pillow1 = document.createElement('a-box');
+        pillow1.setAttribute('position', '-0.45 0.6 -0.65');
+        pillow1.setAttribute('rotation', '15 0 0');
+        pillow1.setAttribute('width', '0.65');
+        pillow1.setAttribute('height', '0.14');
+        pillow1.setAttribute('depth', '0.45');
+        pillow1.setAttribute('material', 'color: #ffffff; roughness: 0.9');
+        root.appendChild(pillow1);
+
+        const pillow2 = document.createElement('a-box');
+        pillow2.setAttribute('position', '0.45 0.6 -0.65');
+        pillow2.setAttribute('rotation', '15 0 0');
+        pillow2.setAttribute('width', '0.65');
+        pillow2.setAttribute('height', '0.14');
+        pillow2.setAttribute('depth', '0.45');
+        pillow2.setAttribute('material', 'color: #ffffff; roughness: 0.9');
+        root.appendChild(pillow2);
+
+        return root;
+      },
+
+      // 2. Sofa
+      sofa: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'sofa');
+        root.setAttribute('data-color', color || '#059669');
+
+        const seatBase = document.createElement('a-box');
+        seatBase.setAttribute('position', '0 0.3 0');
+        seatBase.setAttribute('width', '2.2');
+        seatBase.setAttribute('height', '0.22');
+        seatBase.setAttribute('depth', '0.88');
+        seatBase.setAttribute('material', 'color: #1e293b; roughness: 0.7');
+        root.appendChild(seatBase);
+
+        const seatCushion = document.createElement('a-box');
+        seatCushion.className = 'primary-color-part';
+        seatCushion.setAttribute('position', '0 0.44 0.04');
+        seatCushion.setAttribute('width', '1.82');
+        seatCushion.setAttribute('height', '0.16');
+        seatCushion.setAttribute('depth', '0.78');
+        seatCushion.setAttribute('material', `color: ${color || '#059669'}; roughness: 0.8`);
+        seatCushion.setAttribute('shadow', 'cast: true');
+        root.appendChild(seatCushion);
+
+        const backrest = document.createElement('a-box');
+        backrest.className = 'primary-color-part';
+        backrest.setAttribute('position', '0 0.72 -0.34');
+        backrest.setAttribute('rotation', '-6 0 0');
+        backrest.setAttribute('width', '2.2');
+        backrest.setAttribute('height', '0.55');
+        backrest.setAttribute('depth', '0.2');
+        backrest.setAttribute('material', `color: ${color || '#059669'}; roughness: 0.8`);
+        backrest.setAttribute('shadow', 'cast: true');
+        root.appendChild(backrest);
+
+        const armLeft = document.createElement('a-box');
+        armLeft.setAttribute('position', '-1.0 0.52 0');
+        armLeft.setAttribute('width', '0.2');
+        armLeft.setAttribute('height', '0.35');
+        armLeft.setAttribute('depth', '0.88');
+        armLeft.setAttribute('material', 'color: #1e293b; roughness: 0.6');
+        root.appendChild(armLeft);
+
+        const armRight = document.createElement('a-box');
+        armRight.setAttribute('position', '1.0 0.52 0');
+        armRight.setAttribute('width', '0.2');
+        armRight.setAttribute('height', '0.35');
+        armRight.setAttribute('depth', '0.88');
+        armRight.setAttribute('material', 'color: #1e293b; roughness: 0.6');
+        root.appendChild(armRight);
+
+        const legOffsets = [[-0.95, -0.35], [0.95, -0.35], [-0.95, 0.35], [0.95, 0.35]];
+        legOffsets.forEach(([lx, lz]) => {
+          const leg = document.createElement('a-cylinder');
+          leg.setAttribute('position', `${lx} 0.1 ${lz}`);
+          leg.setAttribute('radius', '0.03');
+          leg.setAttribute('height', '0.2');
+          leg.setAttribute('material', 'color: #d4af37; metalness: 0.8; roughness: 0.2');
+          root.appendChild(leg);
+        });
+
+        const p1 = document.createElement('a-box');
+        p1.setAttribute('position', '-0.7 0.58 -0.15');
+        p1.setAttribute('rotation', '10 15 0');
+        p1.setAttribute('width', '0.32');
+        p1.setAttribute('height', '0.32');
+        p1.setAttribute('depth', '0.12');
+        p1.setAttribute('material', 'color: #fef08a; roughness: 0.9');
+        root.appendChild(p1);
+
+        return root;
+      },
+
+      // 3. Lounge Chair
+      chair: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'chair');
+        root.setAttribute('data-color', color || '#c2410c');
+
+        const seat = document.createElement('a-box');
+        seat.className = 'primary-color-part';
+        seat.setAttribute('position', '0 0.42 0');
+        seat.setAttribute('width', '0.74');
+        seat.setAttribute('height', '0.12');
+        seat.setAttribute('depth', '0.7');
+        seat.setAttribute('material', `color: ${color || '#c2410c'}; roughness: 0.7`);
+        seat.setAttribute('shadow', 'cast: true');
+        root.appendChild(seat);
+
+        const back = document.createElement('a-box');
+        back.className = 'primary-color-part';
+        back.setAttribute('position', '0 0.72 -0.28');
+        back.setAttribute('rotation', '-12 0 0');
+        back.setAttribute('width', '0.74');
+        back.setAttribute('height', '0.52');
+        back.setAttribute('depth', '0.1');
+        back.setAttribute('material', `color: ${color || '#c2410c'}; roughness: 0.7`);
+        back.setAttribute('shadow', 'cast: true');
+        root.appendChild(back);
+
+        const legPositions = [
+          { pos: '-0.3 0.18 0.26', rot: '10 0 -10' },
+          { pos: '0.3 0.18 0.26', rot: '10 0 10' },
+          { pos: '-0.3 0.18 -0.26', rot: '-10 0 -10' },
+          { pos: '0.3 0.18 -0.26', rot: '-10 0 10' }
+        ];
+        legPositions.forEach(cfg => {
+          const leg = document.createElement('a-cylinder');
+          leg.setAttribute('position', cfg.pos);
+          leg.setAttribute('rotation', cfg.rot);
+          leg.setAttribute('radius', '0.025');
+          leg.setAttribute('height', '0.4');
+          leg.setAttribute('material', 'color: #1e293b; metalness: 0.6; roughness: 0.3');
+          root.appendChild(leg);
+        });
+
+        return root;
+      },
+
+      // 4. Dining Table
+      table: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'table');
+        root.setAttribute('data-color', color || '#1e293b');
+
+        const top = document.createElement('a-box');
+        top.className = 'primary-color-part';
+        top.setAttribute('position', '0 0.75 0');
+        top.setAttribute('width', '1.6');
+        top.setAttribute('height', '0.07');
+        top.setAttribute('depth', '0.9');
+        top.setAttribute('material', `color: ${color || '#1e293b'}; roughness: 0.3; metalness: 0.1`);
+        top.setAttribute('shadow', 'cast: true; receive: true');
+        root.appendChild(top);
+
+        const legOffsets = [[-0.7, -0.37], [0.7, -0.37], [-0.7, 0.37], [0.7, 0.37]];
+        legOffsets.forEach(([lx, lz]) => {
+          const leg = document.createElement('a-cylinder');
+          leg.setAttribute('position', `${lx} 0.36 ${lz}`);
+          leg.setAttribute('radius', '0.035');
+          leg.setAttribute('height', '0.72');
+          leg.setAttribute('material', 'color: #d4af37; metalness: 0.85; roughness: 0.2');
+          leg.setAttribute('shadow', 'cast: true');
+          root.appendChild(leg);
+        });
+
+        const bowl = document.createElement('a-cylinder');
+        bowl.setAttribute('position', '0 0.82 0');
+        bowl.setAttribute('radius', '0.14');
+        bowl.setAttribute('height', '0.06');
+        bowl.setAttribute('material', 'color: #ffffff; roughness: 0.2');
+        root.appendChild(bowl);
+
+        return root;
+      },
+
+      // 5. Wardrobe
+      wardrobe: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'wardrobe');
+        root.setAttribute('data-color', color || '#1e293b');
+
+        const body = document.createElement('a-box');
+        body.className = 'primary-color-part';
+        body.setAttribute('position', '0 1.05 0');
+        body.setAttribute('width', '1.3');
+        body.setAttribute('height', '2.1');
+        body.setAttribute('depth', '0.62');
+        body.setAttribute('material', `color: ${color || '#1e293b'}; roughness: 0.4`);
+        body.setAttribute('shadow', 'cast: true; receive: true');
+        root.appendChild(body);
+
+        const groove = document.createElement('a-box');
+        groove.setAttribute('position', '0 1.05 0.315');
+        groove.setAttribute('width', '0.02');
+        groove.setAttribute('height', '2.05');
+        groove.setAttribute('depth', '0.01');
+        groove.setAttribute('material', 'color: #0f172a');
+        root.appendChild(groove);
+
+        const hLeft = document.createElement('a-cylinder');
+        hLeft.setAttribute('position', '-0.06 1.05 0.34');
+        hLeft.setAttribute('radius', '0.012');
+        hLeft.setAttribute('height', '0.45');
+        hLeft.setAttribute('material', 'color: #d4af37; metalness: 0.9; roughness: 0.15');
+        root.appendChild(hLeft);
+
+        const hRight = document.createElement('a-cylinder');
+        hRight.setAttribute('position', '0.06 1.05 0.34');
+        hRight.setAttribute('radius', '0.012');
+        hRight.setAttribute('height', '0.45');
+        hRight.setAttribute('material', 'color: #d4af37; metalness: 0.9; roughness: 0.15');
+        root.appendChild(hRight);
+
+        return root;
+      },
+
+      // 6. Bookshelf
+      bookshelf: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'bookshelf');
+        root.setAttribute('data-color', color || '#3b271d');
+
+        const sideLeft = document.createElement('a-box');
+        sideLeft.setAttribute('position', '-0.55 0.95 0');
+        sideLeft.setAttribute('width', '0.04');
+        sideLeft.setAttribute('height', '1.9');
+        sideLeft.setAttribute('depth', '0.36');
+        sideLeft.setAttribute('material', 'color: #1e293b; metalness: 0.6; roughness: 0.4');
+        root.appendChild(sideLeft);
+
+        const sideRight = document.createElement('a-box');
+        sideRight.setAttribute('position', '0.55 0.95 0');
+        sideRight.setAttribute('width', '0.04');
+        sideRight.setAttribute('height', '1.9');
+        sideRight.setAttribute('depth', '0.36');
+        sideRight.setAttribute('material', 'color: #1e293b; metalness: 0.6; roughness: 0.4');
+        root.appendChild(sideRight);
+
+        const shelfHeights = [0.1, 0.5, 0.9, 1.3, 1.7];
+        shelfHeights.forEach(sh => {
+          const shelf = document.createElement('a-box');
+          shelf.className = 'primary-color-part';
+          shelf.setAttribute('position', `0 ${sh} 0`);
+          shelf.setAttribute('width', '1.14');
+          shelf.setAttribute('height', '0.035');
+          shelf.setAttribute('depth', '0.36');
+          shelf.setAttribute('material', `color: ${color || '#3b271d'}; roughness: 0.6`);
+          shelf.setAttribute('shadow', 'cast: true; receive: true');
+          root.appendChild(shelf);
+        });
+
+        const bookColors = ['#e11d48', '#0284c7', '#059669', '#f59e0b', '#7c3aed'];
+        bookColors.forEach((bColor, idx) => {
+          const book = document.createElement('a-box');
+          book.setAttribute('position', `${-0.35 + idx * 0.07} 0.65 0`);
+          book.setAttribute('width', '0.05');
+          book.setAttribute('height', `${0.22 + (idx % 3) * 0.04}`);
+          book.setAttribute('depth', '0.22');
+          book.setAttribute('material', `color: ${bColor}; roughness: 0.5`);
+          root.appendChild(book);
+        });
+
+        const pot = document.createElement('a-cylinder');
+        pot.setAttribute('position', '0.25 1.0 0');
+        pot.setAttribute('radius', '0.06');
+        pot.setAttribute('height', '0.12');
+        pot.setAttribute('material', 'color: #f8fafc');
+        root.appendChild(pot);
+
+        return root;
+      },
+
+      // 7. Floor Lamp
+      lamp: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'lamp');
+        root.setAttribute('data-color', color || '#d97706');
+
+        const base = document.createElement('a-cylinder');
+        base.setAttribute('position', '0 0.025 0');
+        base.setAttribute('radius', '0.22');
+        base.setAttribute('height', '0.04');
+        base.setAttribute('material', 'color: #0f172a; metalness: 0.8; roughness: 0.3');
+        root.appendChild(base);
+
+        const pole = document.createElement('a-cylinder');
+        pole.setAttribute('position', '0 0.9 0');
+        pole.setAttribute('radius', '0.016');
+        pole.setAttribute('height', '1.75');
+        pole.setAttribute('material', 'color: #d4af37; metalness: 0.9; roughness: 0.2');
+        root.appendChild(pole);
+
+        const shade = document.createElement('a-cylinder');
+        shade.className = 'primary-color-part';
+        shade.setAttribute('position', '0 1.68 0');
+        shade.setAttribute('radius', '0.22');
+        shade.setAttribute('height', '0.32');
+        shade.setAttribute('open-ended', 'true');
+        shade.setAttribute('material', `color: ${color || '#d97706'}; side: double; roughness: 0.7`);
+        root.appendChild(shade);
+
+        const bulb = document.createElement('a-sphere');
+        bulb.setAttribute('position', '0 1.65 0');
+        bulb.setAttribute('radius', '0.07');
+        bulb.setAttribute('material', 'color: #fffbeb; emissive: #fef08a; emissiveIntensity: 0.9');
+        root.appendChild(bulb);
+
+        const lampLight = document.createElement('a-light');
+        lampLight.setAttribute('type', 'point');
+        lampLight.setAttribute('position', '0 1.6 0');
+        lampLight.setAttribute('color', '#fef08a');
+        lampLight.setAttribute('intensity', '0.85');
+        lampLight.setAttribute('distance', '4.5');
+        lampLight.setAttribute('decay', '1.8');
+        root.appendChild(lampLight);
+
+        return root;
+      },
+
+      // 8. Plant
+      plant: function (color) {
+        const root = document.createElement('a-entity');
+        root.className = 'furniture-item clickable';
+        root.setAttribute('data-type', 'plant');
+        root.setAttribute('data-color', color || '#f1f5f9');
+
+        const standOffsets = [[-0.12, -0.12], [0.12, -0.12], [-0.12, 0.12], [0.12, 0.12]];
+        standOffsets.forEach(([sx, sz]) => {
+          const sleg = document.createElement('a-cylinder');
+          sleg.setAttribute('position', `${sx} 0.18 ${sz}`);
+          sleg.setAttribute('radius', '0.014');
+          sleg.setAttribute('height', '0.36');
+          sleg.setAttribute('material', 'color: #78350f; roughness: 0.7');
+          root.appendChild(sleg);
+        });
+
+        const pot = document.createElement('a-cylinder');
+        pot.className = 'primary-color-part';
+        pot.setAttribute('position', '0 0.42 0');
+        pot.setAttribute('radius-top', '0.22');
+        pot.setAttribute('radius-bottom', '0.17');
+        pot.setAttribute('height', '0.38');
+        pot.setAttribute('material', `color: ${color || '#f1f5f9'}; roughness: 0.25`);
+        pot.setAttribute('shadow', 'cast: true');
+        root.appendChild(pot);
+
+        const soil = document.createElement('a-circle');
+        soil.setAttribute('position', '0 0.58 0');
+        soil.setAttribute('rotation', '-90 0 0');
+        soil.setAttribute('radius', '0.2');
+        soil.setAttribute('material', 'color: #26160d; roughness: 0.9');
+        root.appendChild(soil);
+
+        const leafConfigs = [
+          { pos: '0 0.75 0', rot: '0 0 0', scale: '0.22 0.02 0.35' },
+          { pos: '-0.12 0.82 0.08', rot: '25 -40 20', scale: '0.24 0.02 0.38' },
+          { pos: '0.14 0.85 -0.06', rot: '-20 60 -15', scale: '0.23 0.02 0.36' },
+          { pos: '0.06 0.92 0.14', rot: '35 120 10', scale: '0.25 0.02 0.4' },
+          { pos: '-0.15 0.95 -0.12', rot: '-30 -110 -25', scale: '0.22 0.02 0.35' },
+          { pos: '0 1.05 0', rot: '10 45 0', scale: '0.2 0.02 0.32' }
+        ];
+        leafConfigs.forEach(cfg => {
+          const leaf = document.createElement('a-sphere');
+          leaf.setAttribute('position', cfg.pos);
+          leaf.setAttribute('rotation', cfg.rot);
+          leaf.setAttribute('scale', cfg.scale);
+          leaf.setAttribute('material', 'color: #15803d; roughness: 0.6');
+          root.appendChild(leaf);
+        });
+
+        return root;
+      }
+    };
+
+
+    /* -------------------------------------------------------------
+       6. CORE ROOM APPLICATION CONTROLLER (RoomApp)
+       ------------------------------------------------------------- */
+    const RoomApp = {
+      selectedEntity: null,
+      isDesktopDragging: false,
+      furnitureCount: 0,
+
+      init: function () {
+        this.renderSwatches();
+        this.bindEvents();
+        try {
+          initProceduralTextures();
+        } catch (e) {
+          console.error("Texture init error:", e);
+        }
+        this.loadDefaultStagedRoom();
+        this.setupDesktopInteraction();
+      },
+
+      renderSwatches: function () {
+        // Wall Swatches
+        const wallContainer = document.getElementById('wallColorSwatches');
+        if (wallContainer) {
+          wallContainer.innerHTML = '';
+          WALL_COLORS.forEach((item, index) => {
+            const btn = document.createElement('button');
+            btn.className = `swatch-btn ${index === currentWallColorIndex ? 'active' : ''}`;
+            btn.style.backgroundColor = item.hex;
+            btn.title = item.name;
+            btn.addEventListener('click', () => {
+              this.setWallColor(index);
+              SoundEffects.click();
+            });
+            wallContainer.appendChild(btn);
+          });
+        }
+
+        // Furniture Swatches
+        const furnContainer = document.getElementById('furnitureColorSwatches');
+        if (furnContainer) {
+          furnContainer.innerHTML = '';
+          FURNITURE_COLORS.forEach((item) => {
+            const btn = document.createElement('button');
+            btn.className = 'swatch-btn';
+            btn.style.backgroundColor = item.hex;
+            btn.title = item.name;
+            btn.addEventListener('click', () => {
+              this.setSelectedFurnitureColor(item.hex);
+              SoundEffects.click();
+            });
+            furnContainer.appendChild(btn);
+          });
+        }
+      },
+
+      setWallColor: function (index) {
+        currentWallColorIndex = index;
+        const colorData = WALL_COLORS[index];
+        const walls = document.querySelectorAll('.room-wall');
+        walls.forEach(w => {
+          w.setAttribute('material', `color: ${colorData.hex}; roughness: 0.8`);
+        });
+
+        document.getElementById('activeWallName').textContent = colorData.name;
+        const swatches = document.querySelectorAll('#wallColorSwatches .swatch-btn');
+        swatches.forEach((s, idx) => {
+          s.classList.toggle('active', idx === index);
+        });
+
+        this.showToast(`Wall color updated to ${colorData.name}`);
+      },
+
+      setFloorFinish: function (floorType) {
+        currentFloorType = floorType;
+        const floorEl = document.getElementById('roomFloor');
+        if (floorEl && TextureStore[floorType]) {
+          floorEl.setAttribute('material', 'src', TextureStore[floorType]);
+        }
+
+        const chips = document.querySelectorAll('#floorFinishChips .chip-btn');
+        chips.forEach(c => {
+          c.classList.toggle('active', c.getAttribute('data-floor') === floorType);
+        });
+
+        const activeChip = Array.from(chips).find(c => c.getAttribute('data-floor') === floorType);
+        if (activeChip) {
+          document.getElementById('activeFloorName').textContent = activeChip.textContent;
+        }
+
+        SoundEffects.click();
+        this.showToast(`Floor finish changed to ${activeChip ? activeChip.textContent : floorType}`);
+      },
+
+      setLightingMode: function (mode) {
+        currentLightingMode = mode;
+        const ambient = document.getElementById('ambientLight');
+        const sun = document.getElementById('sunLight');
+        const ceiling = document.getElementById('ceilingLight');
+        const skyBackdrop = document.getElementById('skyBackdrop');
+
+        if (mode === 'day') {
+          ambient.setAttribute('color', '#f1f5f9');
+          ambient.setAttribute('intensity', '0.55');
+          sun.setAttribute('color', '#fff4e0');
+          sun.setAttribute('intensity', '1.2');
+          ceiling.setAttribute('intensity', '0.75');
+          if (skyBackdrop) skyBackdrop.setAttribute('material', 'color: #7dd3fc; shader: flat');
+          document.getElementById('lightModeText').textContent = 'Daylight';
+        } else if (mode === 'sunset') {
+          ambient.setAttribute('color', '#fed7aa');
+          ambient.setAttribute('intensity', '0.45');
+          sun.setAttribute('color', '#ea580c');
+          sun.setAttribute('intensity', '1.4');
+          ceiling.setAttribute('intensity', '0.9');
+          if (skyBackdrop) skyBackdrop.setAttribute('material', 'color: #fb923c; shader: flat');
+          document.getElementById('lightModeText').textContent = 'Sunset Glow';
+        } else if (mode === 'night') {
+          ambient.setAttribute('color', '#1e293b');
+          ambient.setAttribute('intensity', '0.25');
+          sun.setAttribute('color', '#38bdf8');
+          sun.setAttribute('intensity', '0.2');
+          ceiling.setAttribute('intensity', '1.1');
+          if (skyBackdrop) skyBackdrop.setAttribute('material', 'color: #020617; shader: flat');
+          document.getElementById('lightModeText').textContent = 'Moody Night';
+        }
+
+        const chips = document.querySelectorAll('#lightingChips .chip-btn');
+        chips.forEach(c => {
+          c.classList.toggle('active', c.getAttribute('data-lighting') === mode);
+        });
+
+        SoundEffects.click();
+        this.showToast(`Lighting ambiance set to ${mode.toUpperCase()}`);
+      },
+
+      toggleViewMode: function () {
+        const rig = document.getElementById('playerRig');
+        const text = document.getElementById('viewModeText');
+        const ceiling = document.getElementById('roomCeiling');
+        isBirdsEyeView = !isBirdsEyeView;
+
+        if (isBirdsEyeView) {
+          rig.setAttribute('animation', 'property: position; to: 0 6.5 4.8; dur: 700; easing: easeInOutCubic');
+          rig.setAttribute('animation__rot', 'property: rotation; to: -45 0 0; dur: 700; easing: easeInOutCubic');
+          if (ceiling) ceiling.setAttribute('visible', 'false');
+          text.textContent = "First-Person View";
+          this.showToast("Switched to Bird's Eye View (Ceiling hidden)");
+        } else {
+          rig.setAttribute('animation', 'property: position; to: 0 0 2.6; dur: 700; easing: easeInOutCubic');
+          rig.setAttribute('animation__rot', 'property: rotation; to: 0 0 0; dur: 700; easing: easeInOutCubic');
+          if (ceiling) ceiling.setAttribute('visible', 'true');
+          text.textContent = "Bird's Eye View";
+          this.showToast("Returned to First-Person Room View");
+        }
+        SoundEffects.click();
+      },
+
+      spawnFurniture: function (type, customX, customZ, customRot, customColor) {
+        if (!FurnitureTemplates[type]) return;
+
+        this.furnitureCount++;
+        const color = customColor || FURNITURE_COLORS[this.furnitureCount % FURNITURE_COLORS.length].hex;
+        const item = FurnitureTemplates[type](color);
+        item.id = `furniture_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+        const posX = customX !== undefined ? customX : (Math.random() * 2 - 1).toFixed(2);
+        const posZ = customZ !== undefined ? customZ : (Math.random() * 2 - 1).toFixed(2);
+        const rotY = customRot !== undefined ? customRot : 0;
+
+        item.setAttribute('position', `${posX} 0 ${posZ}`);
+        item.setAttribute('rotation', `0 ${rotY} 0`);
+
+        document.getElementById('furnitureContainer').appendChild(item);
+        this.selectFurniture(item);
+        SoundEffects.place();
+        this.showToast(`Placed ${type.toUpperCase()} in room`);
+        return item;
+      },
+
+      selectFurniture: function (el) {
+        if (!el) return;
+        this.selectedEntity = el;
+
+        const pos = el.getAttribute('position');
+        const gizmo = document.getElementById('selectionGizmo');
+        gizmo.setAttribute('position', `${pos.x} 0.02 ${pos.z}`);
+        gizmo.setAttribute('visible', 'true');
+
+        const type = el.getAttribute('data-type') || 'Furniture';
+        document.getElementById('inspectorObjectName').textContent = type.toUpperCase();
+        document.getElementById('posCoords').textContent = `X: ${parseFloat(pos.x).toFixed(2)}, Z: ${parseFloat(pos.z).toFixed(2)}`;
+        
+        const rot = el.getAttribute('rotation') || { y: 0 };
+        document.getElementById('rotDegrees').textContent = `${Math.round(rot.y % 360)}°`;
+
+        document.getElementById('selected-inspector').style.display = 'flex';
+      },
+
+      deselect: function () {
+        this.selectedEntity = null;
+        document.getElementById('selectionGizmo').setAttribute('visible', 'false');
+        document.getElementById('selected-inspector').style.display = 'none';
+      },
+
+      moveFurnitureTo: function (entity, targetX, targetZ) {
+        if (!entity) return;
+        const clampedX = Math.max(-3.35, Math.min(3.35, targetX));
+        const clampedZ = Math.max(-3.35, Math.min(3.35, targetZ));
+
+        entity.setAttribute('position', `${clampedX.toFixed(3)} 0 ${clampedZ.toFixed(3)}`);
+
+        if (this.selectedEntity === entity) {
+          const gizmo = document.getElementById('selectionGizmo');
+          gizmo.setAttribute('position', `${clampedX.toFixed(3)} 0.02 ${clampedZ.toFixed(3)}`);
+          document.getElementById('posCoords').textContent = `X: ${clampedX.toFixed(2)}, Z: ${clampedZ.toFixed(2)}`;
+        }
+      },
+
+      nudgeSelected: function (deltaX, deltaZ) {
+        if (!this.selectedEntity) return;
+        const pos = this.selectedEntity.getAttribute('position');
+        this.moveFurnitureTo(this.selectedEntity, pos.x + deltaX, pos.z + deltaZ);
+        SoundEffects.place();
+      },
+
+      rotateSelected: function (degrees) {
+        if (!this.selectedEntity) return;
+        const currentRot = this.selectedEntity.getAttribute('rotation') || { x: 0, y: 0, z: 0 };
+        const newY = (currentRot.y + degrees) % 360;
+        this.selectedEntity.setAttribute('rotation', `0 ${newY} 0`);
+        document.getElementById('rotDegrees').textContent = `${Math.round(newY)}°`;
+        SoundEffects.rotate();
+      },
+
+      duplicateSelected: function () {
+        if (!this.selectedEntity) return;
+        const type = this.selectedEntity.getAttribute('data-type');
+        const pos = this.selectedEntity.getAttribute('position');
+        const rot = this.selectedEntity.getAttribute('rotation');
+        const color = this.selectedEntity.getAttribute('data-color');
+
+        const newX = Math.min(3.2, parseFloat(pos.x) + 0.45);
+        const newZ = Math.min(3.2, parseFloat(pos.z) + 0.45);
+
+        this.spawnFurniture(type, newX, newZ, rot.y, color);
+        SoundEffects.success();
+        this.showToast(`Duplicated ${type.toUpperCase()}`);
+      },
+
+      deleteSelected: function () {
+        if (!this.selectedEntity) return;
+        const type = this.selectedEntity.getAttribute('data-type');
+        this.selectedEntity.parentNode.removeChild(this.selectedEntity);
+        this.deselect();
+        SoundEffects.delete();
+        this.showToast(`Deleted ${type.toUpperCase()}`);
+      },
+
+      setSelectedFurnitureColor: function (hexColor) {
+        if (!this.selectedEntity) {
+          this.showToast("Select a furniture item first to change its color");
+          return;
+        }
+
+        this.selectedEntity.setAttribute('data-color', hexColor);
+        const parts = this.selectedEntity.querySelectorAll('.primary-color-part');
+        parts.forEach(p => {
+          p.setAttribute('material', `color: ${hexColor}`);
+        });
+
+        this.showToast("Color applied to furniture");
+      },
+
+      handleVRKioskAction: function (btnEl) {
+        const action = btnEl.getAttribute('data-action');
+        const type = btnEl.getAttribute('data-type');
+
+        btnEl.setAttribute('material', 'color: #06b6d4');
+        setTimeout(() => {
+          btnEl.setAttribute('material', 'color: #312e81');
+        }, 220);
+
+        if (action === 'spawn') {
+          this.spawnFurniture(type);
+        } else if (action === 'rotate-left') {
+          this.rotateSelected(-90);
+        } else if (action === 'rotate-right') {
+          this.rotateSelected(90);
+        } else if (action === 'duplicate') {
+          this.duplicateSelected();
+        } else if (action === 'delete') {
+          this.deleteSelected();
+        } else if (action === 'cycle-walls') {
+          const nextIndex = (currentWallColorIndex + 1) % WALL_COLORS.length;
+          this.setWallColor(nextIndex);
+          SoundEffects.click();
+        } else if (action === 'reset') {
+          this.resetRoom();
+        }
+      },
+
+      setupDesktopInteraction: function () {
+        const scene = document.querySelector('a-scene');
+        const camEl = document.getElementById('headsetCamera');
+
+        scene.addEventListener('click', (evt) => {
+          if (evt.target.closest('#desktop-ui')) return;
+
+          const intersected = evt.detail?.intersectedEl;
+          if (intersected) {
+            // Check VR Kiosk button clicked via mouse
+            const kioskBtn = intersected.closest('.vr-ui-button');
+            if (kioskBtn) {
+              this.handleVRKioskAction(kioskBtn);
+              return;
+            }
+
+            // Check furniture clicked
+            const furniture = intersected.closest('.furniture-item');
+            if (furniture) {
+              this.selectFurniture(furniture);
+              SoundEffects.click();
+              return;
+            }
+          }
+        });
+
+        // Smooth Three.js mathematical plane intersection for dragging
+        window.addEventListener('mousedown', (evt) => {
+          if (evt.target.closest('#desktop-ui')) return;
+          if (this.selectedEntity) {
+            this.isDesktopDragging = true;
+            if (camEl) camEl.setAttribute('look-controls', 'enabled: false');
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (this.isDesktopDragging) {
+            SoundEffects.place();
+          }
+          this.isDesktopDragging = false;
+          if (camEl) camEl.setAttribute('look-controls', 'enabled: true');
+        });
+
+        window.addEventListener('mousemove', (evt) => {
+          if (this.isDesktopDragging && this.selectedEntity) {
+            const threeCam = scene.camera;
+            if (threeCam && scene.renderer) {
+              const rect = scene.renderer.domElement.getBoundingClientRect();
+              const mouse = new THREE.Vector2(
+                ((evt.clientX - rect.left) / rect.width) * 2 - 1,
+                -((evt.clientY - rect.top) / rect.height) * 2 + 1
+              );
+              const raycaster = new THREE.Raycaster();
+              raycaster.setFromCamera(mouse, threeCam);
+              const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+              const hitTarget = new THREE.Vector3();
+              if (raycaster.ray.intersectPlane(floorPlane, hitTarget)) {
+                this.moveFurnitureTo(this.selectedEntity, hitTarget.x, hitTarget.z);
+              }
+            }
+          }
+        });
+      },
+
+      resetRoom: function () {
+        const container = document.getElementById('furnitureContainer');
+        container.innerHTML = '';
+        this.deselect();
+        this.loadDefaultStagedRoom();
+        this.setWallColor(0);
+        this.setFloorFinish('oak');
+        this.setLightingMode('day');
+        SoundEffects.success();
+        this.showToast('Room reset to default staging');
+      },
+
+      loadDefaultStagedRoom: function () {
+        this.spawnFurniture('bed', -1.8, -2.4, 0, '#4f46e5');
+        this.spawnFurniture('wardrobe', -3.2, 0.4, 90, '#1e293b');
+        this.spawnFurniture('chair', 1.8, -2.2, -45, '#c2410c');
+        this.spawnFurniture('table', 0.8, -2.2, 0, '#1e293b');
+        this.spawnFurniture('lamp', 3.2, -3.2, 0, '#d97706');
+        this.spawnFurniture('plant', 3.1, 0.2, 0, '#f1f5f9');
+        this.spawnFurniture('bookshelf', 3.3, -1.5, -90, '#3b271d');
+        this.deselect();
+      },
+
+      saveDesign: function () {
+        try {
+          const items = [];
+          const furnitureEls = document.querySelectorAll('.furniture-item');
+          furnitureEls.forEach(el => {
+            const pos = el.getAttribute('position');
+            const rot = el.getAttribute('rotation');
+            items.push({
+              type: el.getAttribute('data-type'),
+              color: el.getAttribute('data-color'),
+              position: { x: parseFloat(pos.x), y: parseFloat(pos.y), z: parseFloat(pos.z) },
+              rotation: { x: parseFloat(rot.x), y: parseFloat(rot.y), z: parseFloat(rot.z) }
+            });
+          });
+
+          const designData = {
+            version: '1.0',
+            wallColorIndex: currentWallColorIndex,
+            floorType: currentFloorType,
+            lightingMode: currentLightingMode,
+            furniture: items
+          };
+
+          localStorage.setItem('roomcraft_vr_saved_design', JSON.stringify(designData));
+          SoundEffects.success();
+          this.showToast('Design successfully saved to browser local storage!');
+        } catch (err) {
+          console.error("Save failed:", err);
+          this.showToast('Failed to save design');
+        }
+      },
+
+      loadDesign: function () {
+        try {
+          const savedStr = localStorage.getItem('roomcraft_vr_saved_design');
+          if (!savedStr) {
+            this.showToast('No saved design found in this browser');
+            return;
+          }
+
+          const data = JSON.parse(savedStr);
+          if (!data || !data.furniture) {
+            this.showToast('Saved design data is invalid');
+            return;
+          }
+
+          document.getElementById('furnitureContainer').innerHTML = '';
+          this.deselect();
+
+          if (data.wallColorIndex !== undefined) this.setWallColor(data.wallColorIndex);
+          if (data.floorType) this.setFloorFinish(data.floorType);
+          if (data.lightingMode) this.setLightingMode(data.lightingMode);
+
+          data.furniture.forEach(item => {
+            this.spawnFurniture(item.type, item.position.x, item.position.z, item.rotation.y, item.color);
+          });
+
+          this.deselect();
+          SoundEffects.success();
+          this.showToast(`Restored design with ${data.furniture.length} items!`);
+        } catch (err) {
+          console.error("Load failed:", err);
+          this.showToast('Error restoring saved design');
+        }
+      },
+
+      showToast: function (message) {
+        const toast = document.getElementById('toast-notification');
+        const text = document.getElementById('toastText');
+        if (!toast || !text) return;
+
+        text.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(this.toastTimeout);
+        this.toastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2800);
+      },
+
+      bindEvents: function () {
+        // Spawn Furniture from Catalog
+        const spawnCards = document.querySelectorAll('[data-spawn]');
+        spawnCards.forEach(card => {
+          card.addEventListener('click', () => {
+            const type = card.getAttribute('data-spawn');
+            this.spawnFurniture(type);
+          });
+        });
+
+        // Inspector Nudge D-Pad
+        document.getElementById('btnNudgeNorth').addEventListener('click', () => this.nudgeSelected(0, -0.25));
+        document.getElementById('btnNudgeSouth').addEventListener('click', () => this.nudgeSelected(0, 0.25));
+        document.getElementById('btnNudgeWest').addEventListener('click', () => this.nudgeSelected(-0.25, 0));
+        document.getElementById('btnNudgeEast').addEventListener('click', () => this.nudgeSelected(0.25, 0));
+
+        // Inspector Transform Buttons
+        document.getElementById('btnRotateCW').addEventListener('click', () => this.rotateSelected(90));
+        document.getElementById('btnDuplicate').addEventListener('click', () => this.duplicateSelected());
+        document.getElementById('btnDelete').addEventListener('click', () => this.deleteSelected());
+        document.getElementById('btnDeselect').addEventListener('click', () => this.deselect());
+
+        // Floor Chips
+        const floorChips = document.querySelectorAll('#floorFinishChips .chip-btn');
+        floorChips.forEach(chip => {
+          chip.addEventListener('click', () => {
+            this.setFloorFinish(chip.getAttribute('data-floor'));
+          });
+        });
+
+        // Lighting Chips
+        const lightChips = document.querySelectorAll('#lightingChips .chip-btn');
+        lightChips.forEach(chip => {
+          chip.addEventListener('click', () => {
+            this.setLightingMode(chip.getAttribute('data-lighting'));
+          });
+        });
+
+        // Top Navigation Buttons
+        document.getElementById('btnViewToggle').addEventListener('click', () => this.toggleViewMode());
+        document.getElementById('btnLightingToggle').addEventListener('click', () => {
+          const modes = ['day', 'sunset', 'night'];
+          const nextIndex = (modes.indexOf(currentLightingMode) + 1) % modes.length;
+          this.setLightingMode(modes[nextIndex]);
+        });
+        document.getElementById('btnSave').addEventListener('click', () => this.saveDesign());
+        document.getElementById('btnLoad').addEventListener('click', () => this.loadDesign());
+        document.getElementById('btnReset').addEventListener('click', () => {
+          if (confirm("Reset room to default staging layout?")) {
+            this.resetRoom();
+          }
+        });
+
+        // Enter VR Button
+        document.getElementById('btnEnterVR').addEventListener('click', () => {
+          const scene = document.querySelector('a-scene');
+          if (scene && scene.enterVR) {
+            scene.enterVR();
+          } else {
+            this.showToast("VR mode not supported or already entering");
+          }
+        });
+
+        // Help Modal Controls
+        const helpModal = document.getElementById('helpModal');
+        document.getElementById('btnHelp').addEventListener('click', () => {
+          helpModal.style.display = 'flex';
+          SoundEffects.click();
+        });
+        const closeHelp = () => { helpModal.style.display = 'none'; };
+        document.getElementById('btnCloseHelp').addEventListener('click', closeHelp);
+        document.getElementById('btnCloseHelpFooter').addEventListener('click', closeHelp);
+
+        // Help Modal Tabs
+        const tabBtns = document.querySelectorAll('.modal-tab-btn');
+        tabBtns.forEach(btn => {
+          btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const target = btn.getAttribute('data-tab');
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById(target).style.display = 'flex';
+            SoundEffects.click();
+          });
+        });
+
+        // Keyboard Shortcuts
+        window.addEventListener('keydown', (evt) => {
+          if (evt.target.tagName === 'INPUT') return;
+          if (evt.key === 'r' || evt.key === 'R') {
+            this.rotateSelected(90);
+          } else if (evt.key === 'Delete' || evt.key === 'Backspace') {
+            this.deleteSelected();
+          } else if (evt.key === 'Escape') {
+            this.deselect();
+          }
+        });
+      }
+    };
+
+
+    /* -------------------------------------------------------------
+       7. INITIALIZATION ON SCENE LOAD (Guaranteed Dual Trigger)
+       ------------------------------------------------------------- */
+    let isAppInitialized = false;
+    function launchRoomApp() {
+      if (isAppInitialized) return;
+      isAppInitialized = true;
+      RoomApp.init();
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', () => {
+        const scene = document.querySelector('a-scene');
+        if (scene && scene.hasLoaded) {
+          launchRoomApp();
+        } else if (scene) {
+          scene.addEventListener('loaded', launchRoomApp);
+        }
+        setTimeout(launchRoomApp, 250);
+      });
+    } else {
+      const scene = document.querySelector('a-scene');
+      if (scene && scene.hasLoaded) {
+        launchRoomApp();
+      } else if (scene) {
+        scene.addEventListener('loaded', launchRoomApp);
+      }
+      setTimeout(launchRoomApp, 250);
+    }
+  </script>
+
+</body>
+</html>
